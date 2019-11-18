@@ -1,0 +1,5 @@
+include README.md LICENSE Pipfile Pipfile.lock
+
+recursive-include gym_minecraft_pygame *
+recursive-include tests *.py
+recursive-include docs *
