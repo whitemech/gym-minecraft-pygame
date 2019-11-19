@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 __title__ = 'gym_minecraft_pygame'
-__description__ = 'Gym Breakout environment using Pygame'
+__description__ = 'Gym Minecraft environment using Pygame'
 __url__ = 'https://github.com/sapienza-rl/gym-minecraft-pygame.git'
 __version__ = '0.1.0'
 __author__ = 'Marco Favorito, Luca Iocchi'
