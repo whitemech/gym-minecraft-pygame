@@ -307,11 +307,14 @@ class MinecraftConfiguration:
 
     def __init__(self, differential: bool = False,
                  horizon: Optional[int] = None,
+                 nb_goals: int = 3,
                  reward_outside_grid: float = -1.0,
                  reward_bad_get: float = -1.0,
                  reward_bad_use: float = -1.0,
                  reward_per_step: float = -0.01):
+        assert 1 <= nb_goals <= len(TASKS), "at least 1 goal and at most 8."
         self.differential = differential
+        self.nb_goals = nb_goals
         self._horizon = horizon if horizon else (self.columns * self.rows) * 10
         self.reward_outside_grid = reward_outside_grid
         self.reward_bad_get = reward_bad_get
@@ -556,7 +559,7 @@ class MinecraftState(State):
         self.last_command = NormalCommand.NOP if config.differential else DifferentialCommand.NOP
         self._steps = 0
 
-        self.tasks = tuple(TASKS.values())
+        self.tasks = tuple(TASKS.values())[:self.config.nb_goals]
         self.task_progresses = OrderedDict({t.name: TaskProgress(t) for t in self.tasks})  # type: Dict[str, TaskProgress]
 
     def step(self, command: Union[DifferentialCommand, NormalCommand]) -> float:
