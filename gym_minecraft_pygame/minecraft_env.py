@@ -325,6 +325,7 @@ class MinecraftConfiguration:
         assert 1 <= nb_goals <= len(TASKS), "at least 1 goal and at most 8."
         self.differential = differential
         self.nb_goals = nb_goals
+        self._tasks = tuple(TASKS.values())[:self.nb_goals]
         self._horizon = horizon if horizon else (self.columns * self.rows) * 10
         self.reward_outside_grid = reward_outside_grid
         self.reward_bad_get = reward_bad_get
@@ -386,6 +387,10 @@ class MinecraftConfiguration:
     @property
     def nb_theta(self):
         return Direction.NB_DIRECTIONS
+
+    @property
+    def tasks(self):
+        return self._tasks
 
 
 class Robot(PygameDrawable):
@@ -569,7 +574,7 @@ class MinecraftState(State):
         self.last_command = NormalCommand.NOP if config.differential else DifferentialCommand.NOP
         self._steps = 0
 
-        self.tasks = tuple(TASKS.values())[:self.config.nb_goals]
+        self.tasks = self.config.tasks
         self.task_progresses = OrderedDict({t.name: TaskProgress(t) for t in self.tasks})  # type: Dict[str, TaskProgress]
 
     def step(self, command: Union[DifferentialCommand, NormalCommand]) -> float:

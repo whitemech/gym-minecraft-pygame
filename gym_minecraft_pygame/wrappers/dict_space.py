@@ -34,3 +34,8 @@ class MinecraftDictSpace(Minecraft):
     def observe(self, state: MinecraftState):
         """Observe the state."""
         return state.to_dict()
+
+
+if __name__ == '__main__':
+    env = MinecraftDictSpace()
+    env.play()
