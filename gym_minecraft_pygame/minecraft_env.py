@@ -14,7 +14,7 @@ from typing import Optional, Tuple, Dict, Union, List, Collection
 import gym as gym
 import pygame
 from gym.spaces import Discrete, MultiDiscrete
-from numpy import clip
+import numpy as np
 
 black = [0, 0, 0]
 white = [255,255,255]
@@ -119,14 +119,14 @@ class TaskProgress:
 
 
 TASKS = OrderedDict({
-    'make_plank': Task('make_plank', [Get(Resources.WOOD), Use(Tools.TOOLSHED)]),
-    'make_stick': Task('make_stick', [Get(Resources.WOOD), Use(Tools.WORKBENCH)]),
-    'make_cloth': Task('make_cloth', [Get(Resources.GRASS), Use(Tools.FACTORY)]),
-    'make_rope': Task('make_rope',  [Get(Resources.GRASS), Use(Tools.TOOLSHED)]),
     'make_bridge': Task('make_bridge', [Get(Resources.IRON), Get(Resources.WOOD), Use(Tools.FACTORY)]),
+    'make_plank': Task('make_plank', [Get(Resources.WOOD), Use(Tools.TOOLSHED)]),
+    'make_cloth': Task('make_cloth', [Get(Resources.GRASS), Use(Tools.FACTORY)]),
+    'make_stick': Task('make_stick', [Get(Resources.WOOD), Use(Tools.WORKBENCH)]),
+    'make_rope': Task('make_rope',  [Get(Resources.GRASS), Use(Tools.TOOLSHED)]),
+    'make_shears': Task('make_shears', [Get(Resources.WOOD), Use(Tools.WORKBENCH), Get(Resources.IRON), Use(Tools.WORKBENCH)]),
     'make_bed': Task('make_bed', [Get(Resources.WOOD), Use(Tools.TOOLSHED), Get(Resources.GRASS), Use(Tools.WORKBENCH)]),
     'make_axe': Task('make_axe', [Get(Resources.WOOD), Use(Tools.WORKBENCH), Get(Resources.IRON), Use(Tools.TOOLSHED)]),
-    'make_shears': Task('make_shears', [Get(Resources.WOOD), Use(Tools.WORKBENCH), Get(Resources.IRON), Use(Tools.WORKBENCH)])
     # 'get_gold': [ ['get_iron', 'get_wood', 'use_factory', 'use_bridge'] ],
     # 'get_gem': [ ['get_wood', 'use_workbench', 'get_iron', 'use_toolshed', 'use_axe'] ]
 })
@@ -139,6 +139,8 @@ LOCATIONS = [
     (Tools.WORKBENCH, 6, 3),
     (Tools.FACTORY, 4, 7)
 ]
+
+item2location = {item: (x, y) for item, x, y in LOCATIONS}
 
 # add a 'None' item
 item2int = dict(map(reversed, enumerate([None] + list(Resources) + list(Tools))))
@@ -313,18 +315,59 @@ class DifferentialCommand(Enum):
             raise ValueError("Shouldn't be here...")
 
 
+class TeleportCommand(Enum):
+    NOP = 0
+    GOTO_WOOD = 1
+    GOTO_GRASS = 2
+    GOTO_IRON = 3
+    GOTO_TOOLSHED = 4
+    GOTO_WORKBENCH = 5
+    GOTO_FACTORY = 6
+    GET = 7
+    USE = 8
+
+    def __str__(self):
+        cmd = TeleportCommand(self.value)
+        if cmd == TeleportCommand.NOP:
+            return "_"
+        elif cmd == cmd.GOTO_WOOD:
+            return "goto_wood"
+        elif cmd == cmd.GOTO_GRASS:
+            return "goto_grass"
+        elif cmd == cmd.GOTO_IRON:
+            return "goto_iron"
+        elif cmd == cmd.GOTO_TOOLSHED:
+            return "goto_toolshed"
+        elif cmd == cmd.GOTO_WORKBENCH:
+            return "goto_workbench"
+        elif cmd == cmd.GOTO_FACTORY:
+            return "goto_factory"
+        elif cmd == cmd.GET:
+            return "g"
+        elif cmd == cmd.USE:
+            return "u"
+        else:
+            raise ValueError("Shouldn't be here...")
+
+
+class ActionSpaceType(Enum):
+    NORMAL = "normal"
+    DIFFERENTIAL = "differential"
+    TELEPORT = "teleport"
+
+
 class MinecraftConfiguration:
 
-    def __init__(self, differential: bool = False,
-                 horizon: Optional[int] = None,
-                 nb_goals: int = 3,
+    def __init__(self, horizon: Optional[int] = None,
+                 nb_goals: int = len(TASKS),
+                 action_space_type = ActionSpaceType.NORMAL,
                  reward_outside_grid: float = -1.0,
                  reward_bad_get: float = -1.0,
                  reward_bad_use: float = -1.0,
                  reward_per_step: float = -0.01):
         assert 1 <= nb_goals <= len(TASKS), "at least 1 goal and at most 8."
-        self.differential = differential
         self.nb_goals = nb_goals
+        self.action_space_type = ActionSpaceType(action_space_type)
         self._tasks = tuple(TASKS.values())[:self.nb_goals]
         self._horizon = horizon if horizon else (self.columns * self.rows) * 10
         self.reward_outside_grid = reward_outside_grid
@@ -361,24 +404,32 @@ class MinecraftConfiguration:
 
     @property
     def action_space(self):
-        if self.differential:
-            return Discrete(len(DifferentialCommand))
-        else:
+        if self.action_space_type == ActionSpaceType.NORMAL:
             return Discrete(len(NormalCommand))
+        elif self.action_space_type == ActionSpaceType.DIFFERENTIAL:
+            return Discrete(len(DifferentialCommand))
+        elif self.action_space_type == ActionSpaceType.TELEPORT:
+            return Discrete(len(TeleportCommand))
+        else:
+            raise ValueError("Action space type not recognized.")
 
     @property
     def observation_space(self):
-        if self.differential:
+        if self.action_space_type == ActionSpaceType.DIFFERENTIAL:
             # 4 is the number of possible direction - nord, sud, west, east
             return MultiDiscrete((self.columns, self.rows, Direction.NB_DIRECTIONS))
         else:
             return MultiDiscrete((self.columns, self.rows))
 
-    def get_action(self, action: int) -> Union[DifferentialCommand, NormalCommand]:
-        if self.differential:
-            return DifferentialCommand(action)
-        else:
+    def get_action(self, action: int) -> Union[DifferentialCommand, NormalCommand, TeleportCommand]:
+        if self.action_space_type == ActionSpaceType.NORMAL:
             return NormalCommand(action)
+        elif self.action_space_type == ActionSpaceType.DIFFERENTIAL:
+            return DifferentialCommand(action)
+        elif self.action_space_type == ActionSpaceType.TELEPORT:
+            return TeleportCommand(action)
+        else:
+            raise ValueError("Action space type not recognized.")
 
     @property
     def horizon(self):
@@ -435,25 +486,59 @@ class Robot(PygameDrawable):
         pygame.draw.circle(screen, pygame.color.THECOLORS['black'],
                            [dx + self.config.size_square // 2 + ox, dy + self.config.size_square // 2 + oy], 5, 0)
 
-    def step(self, command: Union[DifferentialCommand, NormalCommand]):
+    def step(self, command: Union[DifferentialCommand, NormalCommand, TeleportCommand]):
         if isinstance(command, NormalCommand):
-            if command == command.DOWN: self.y -= 1
-            elif command == command.UP: self.y += 1
-            elif command == command.RIGHT: self.x += 1
-            elif command == command.LEFT: self.x -= 1
+            self._step_normal(command)
         elif isinstance(command, DifferentialCommand):
-            dx = 1 if self.direction.th == 0 else -1 if self.direction.th == 180 else 0
-            dy = 1 if self.direction.th == 90 else -1 if self.direction.th == 270 else 0
-            if command == command.LEFT: self.direction = self.direction.rotate_left()
-            elif command == command.RIGHT: self.direction = self.direction.rotate_right()
-            elif command == command.FORWARD:
-                self.x += dx
-                self.y += dy
-            elif command == command.BACKWARD:
-                self.x -= dx
-                self.y -= dy
+            self._step_differential(command)
+        elif isinstance(command, TeleportCommand):
+            self._step_teleport(command)
         else:
             raise ValueError("Command not recognized.")
+
+    def _step_normal(self, command: NormalCommand):
+        if command == command.DOWN:
+            self.y -= 1
+        elif command == command.UP:
+            self.y += 1
+        elif command == command.RIGHT:
+            self.x += 1
+        elif command == command.LEFT:
+            self.x -= 1
+
+    def _step_differential(self, command: DifferentialCommand):
+        dx = 1 if self.direction.th == 0 else -1 if self.direction.th == 180 else 0
+        dy = 1 if self.direction.th == 90 else -1 if self.direction.th == 270 else 0
+        if command == command.LEFT:
+            self.direction = self.direction.rotate_left()
+        elif command == command.RIGHT:
+            self.direction = self.direction.rotate_right()
+        elif command == command.FORWARD:
+            self.x += dx
+            self.y += dy
+        elif command == command.BACKWARD:
+            self.x -= dx
+            self.y -= dy
+
+    def _step_teleport(self, command: TeleportCommand):
+        if command == command.GOTO_WOOD:
+            location = item2location[Resources.WOOD]
+        elif command == command.GOTO_GRASS:
+            location = item2location[Resources.GRASS]
+        elif command == command.GOTO_IRON:
+            location = item2location[Resources.IRON]
+        elif command == command.GOTO_TOOLSHED:
+            location = item2location[Tools.TOOLSHED]
+        elif command == command.GOTO_WORKBENCH:
+            location = item2location[Tools.WORKBENCH]
+        elif command == command.GOTO_FACTORY:
+            location = item2location[Tools.FACTORY]
+        else:
+            return
+
+        x, y = location
+        self.x = x
+        self.y = y
 
     @property
     def encoded_theta(self):
@@ -571,13 +656,15 @@ class MinecraftState(State):
         self.grid = MinecraftGrid(config)
         self.robot = Robot(config)
 
-        self.last_command = NormalCommand.NOP if config.differential else DifferentialCommand.NOP
+        self.last_command = NormalCommand.NOP if self.config.action_space_type == ActionSpaceType.NORMAL else\
+                            DifferentialCommand.NOP if self.config.action_space_type == ActionSpaceType.DIFFERENTIAL else\
+                            TeleportCommand.NOP
         self._steps = 0
 
         self.tasks = self.config.tasks
         self.task_progresses = OrderedDict({t.name: TaskProgress(t) for t in self.tasks})  # type: Dict[str, TaskProgress]
 
-    def step(self, command: Union[DifferentialCommand, NormalCommand]) -> float:
+    def step(self, command: Union[DifferentialCommand, NormalCommand, TeleportCommand]) -> float:
         reward = 0.0
         self._steps += 1
 
@@ -587,10 +674,10 @@ class MinecraftState(State):
         # handle robot outside borders
         if not (0 <= self.robot.x < self.config.columns):
             reward += self.config.reward_outside_grid
-            self.robot.x = int(clip(self.robot.x, 0, self.config.columns - 1))
+            self.robot.x = int(np.clip(self.robot.x, 0, self.config.columns - 1))
         if not (0 <= self.robot.y < self.config.rows):
             reward += self.config.reward_outside_grid
-            self.robot.y = int(clip(self.robot.y, 0, self.config.rows - 1))
+            self.robot.y = int(np.clip(self.robot.y, 0, self.config.rows - 1))
 
         if command == command.GET:
             reward += self._handle_get()
@@ -603,18 +690,14 @@ class MinecraftState(State):
     def reset(self) -> 'MinecraftState':
         return MinecraftState(self.config)
 
-    @property
-    def last_command_beep(self) -> bool:
-        return self.last_command.value == 4
-
     def to_dict(self) -> dict:
         return {
             "x": self.robot.x,
             "y": self.robot.y,
             "theta": self.robot.encoded_theta,
             "item": self.current_cell.encoded_item,
-            "command": 1 if self.last_command.value == 5 else 2 if self.last_command.value == 6 else 0,
-            # **{"task-" + str(i): t.next_action_index for i, t in enumerate(self.task_progresses.values())}
+            "command": 1 if self.last_command == self.last_command.GET else 2 if self.last_command == self.last_command.USE else 0,
+            "completed_tasks": np.asarray([1 if t.is_complete() else 0 for t in self.task_progresses.values()])
         }
 
     @property
@@ -685,7 +768,7 @@ class Minecraft(gym.Env, ABC):
 
     @property
     def observation_space(self):
-        return self.configuration.action_space
+        return self.configuration.observation_space
 
     def step(self, action: int):
         command = self.configuration.get_action(action)
@@ -720,6 +803,8 @@ class Minecraft(gym.Env, ABC):
         """
 
     def play(self):
+        if self.configuration.action_space_type == ActionSpaceType.TELEPORT:
+            raise ValueError("Play with 'teleport' action space not supported.")
         print("Press 'Q' to quit.")
         self.reset()
         self.render()

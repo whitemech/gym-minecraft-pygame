@@ -2,9 +2,10 @@
 
 """Minecraft environments using a "dict" state space."""
 
-from gym.spaces import Dict, Discrete
+from gym.spaces import Dict, Discrete, MultiDiscrete
 
-from gym_minecraft_pygame.minecraft_env import Minecraft, MinecraftState, item2int
+from gym_minecraft_pygame.minecraft_env import Minecraft, MinecraftState, item2int, MinecraftConfiguration, \
+    ActionSpaceType
 
 
 class MinecraftDictSpace(Minecraft):
@@ -18,8 +19,7 @@ class MinecraftDictSpace(Minecraft):
         self._theta_space = Discrete(self.configuration.nb_theta)
         self._item_space = Discrete(len(item2int))
         self._command_space = Discrete(3)
-
-        # ** {"task-" + str(i): t.next_action_index for i, t in enumerate(self.task_progresses.values())}
+        self._task_completed_space = MultiDiscrete([2] * self.configuration.nb_goals)
 
     @property
     def observation_space(self):
@@ -29,6 +29,7 @@ class MinecraftDictSpace(Minecraft):
             "theta": self._theta_space,
             "item": self._item_space,
             "command": self._command_space,
+            "completed_tasks": self._task_completed_space
         })
 
     def observe(self, state: MinecraftState):
@@ -37,5 +38,5 @@ class MinecraftDictSpace(Minecraft):
 
 
 if __name__ == '__main__':
-    env = MinecraftDictSpace()
+    env = MinecraftDictSpace(MinecraftConfiguration(action_space_type=ActionSpaceType.DIFFERENTIAL))
     env.play()
