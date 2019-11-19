@@ -47,7 +47,10 @@ Item = Union[Resources, Tools]
 
 
 class Action(ABC):
-    pass
+
+    @property
+    def item(self):
+        raise NotImplementedError
 
 
 class Get(Action):
@@ -58,6 +61,9 @@ class Get(Action):
     def __eq__(self, other):
         return type(self) == type(other) and self.resource == other.resource
 
+    @property
+    def item(self) -> Resources:
+        return self.resource
 
 class Use(Action):
 
@@ -66,6 +72,10 @@ class Use(Action):
 
     def __eq__(self, other):
         return type(self) == type(other) and self.tool == other.tool
+
+    @property
+    def item(self) -> Tools:
+        return self.tool
 
 
 class Task:
