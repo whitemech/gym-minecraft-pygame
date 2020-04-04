@@ -31,7 +31,7 @@ setup(
     ],
     install_requires=["gym", "pygame", "numpy"],
     tests_require=["tox"],
-    python_requires='>=3.7',
+    python_requires='>=3.6',
     license=about['__license__'],
     zip_safe=False
 )
