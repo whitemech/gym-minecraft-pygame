@@ -1,0 +1,11 @@
+site_name: Gym Minecraft Pygame
+nav:
+    - Home: index.md
+    - Release History: history.md
+    - Authors: authors.md
+    - How to contribute: contributing.md
+
+theme: readthedocs
+markdown_extensions:
+    - markdown_include.include:
+        base_path: docs

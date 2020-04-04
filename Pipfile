@@ -1,0 +1,22 @@
+[[source]]
+name = "pypi"
+url = "https://pypi.org/simple"
+verify_ssl = true
+
+[dev-packages]
+tox = "*"
+ipython = "*"
+jupyter = "*"
+pytest = "*"
+pytest-cov = "*"
+flake8 = "*"
+mypy = "*"
+flake8-docstrings = "*"
+pydocstyle = "*"
+mkdocs = "*"
+markdown-include = "*"
+
+[packages]
+
+[requires]
+python_version = "3.7"
