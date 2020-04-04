@@ -19,7 +19,7 @@ setup(
     url=about['__url__'],
     long_description=readme,
     long_description_content_type='text/markdown',
-    keywords='environment, agent, rl, openaigym, openai-gym, gym, sapientino',
+    keywords='environment, agent, rl, openaigym, openai-gym, gym, minecraft',
     packages=find_packages(include="gym_minecraft_pygame*"),
     classifiers=[
         'Development Status :: 2 - Pre-Alpha',
