@@ -13,6 +13,8 @@ flake8 = "*"
 mypy = "*"
 flake8-docstrings = "*"
 pydocstyle = "*"
+mkdocs = "*"
+markdown-include = "*"
 
 [packages]
 
