@@ -7,11 +7,16 @@ verify_ssl = true
 tox = "*"
 ipython = "*"
 jupyter = "*"
+pytest = "*"
+pytest-cov = "*"
+flake8 = "*"
+mypy = "*"
+flake8-docstrings = "*"
+pydocstyle = "*"
+mkdocs = "*"
+markdown-include = "*"
 
 [packages]
-gym = "*"
-pygame = "*"
-numpy = "*"
 
 [requires]
 python_version = "3.7"

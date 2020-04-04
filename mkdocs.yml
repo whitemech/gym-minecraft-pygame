@@ -1,7 +1,8 @@
 site_name: Gym Minecraft Pygame
 nav:
     - Home: index.md
-    - Credits: authors.md
+    - Release History: history.md
+    - Authors: authors.md
     - How to contribute: contributing.md
 
 theme: readthedocs
